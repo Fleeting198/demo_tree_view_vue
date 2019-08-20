@@ -27,7 +27,6 @@
 
 <script>
 import EditableLabel from "@/common/EditableLabel";
-import { truncate } from "fs";
 export default {
   name: "TreeItem",
   components: {
