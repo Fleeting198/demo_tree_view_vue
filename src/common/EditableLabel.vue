@@ -3,10 +3,12 @@
     <input
       class="textInput"
       type="text"
+      ref="input"
       v-if="isEditing"
       :value="value"
       @change="$emit('change', $event.target.value)"
       @keydown.enter="isEditing=false"
+      @blur="endEdit"
     />
     <span class="textLabel" v-if="!isEditing">{{value}}</span>
     <span class="itemAction" @click="toggle">[ e ]</span>
@@ -25,8 +27,21 @@ export default {
     };
   },
   methods: {
+    startEdit() {
+      this.isEditing = true;
+      this.$nextTick(function() {
+        this.$refs.input.focus();
+      });
+    },
+    endEdit() {
+      this.isEditing = false;
+    },
     toggle() {
-      this.isEditing = !this.isEditing;
+      if (this.isEditing) {
+        this.endEdit();
+      } else {
+        this.startEdit();
+      }
     }
   }
 };
