@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>ui-vue-treeView</title>
+    <script src="vue.js"></script>
+    <style>
+        body{
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            font-family:  Monaco;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .treeList {
+            user-select: none;
+        }
+
+        .editableLabel {
+            display: inline-block;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .itemAction {
+            /* margin-left: 1px; */
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <tree-list :tree-data="treeData"></tree-list>
+    </div>
+
+    <script>
+        const treeData = {
+            name: "My Tree",
+            children: [{
+                    name: "hello"
+                },
+                {
+                    name: "wat"
+                },
+                {
+                    name: "child folder",
+                    children: [{
+                            name: "child folder",
+                            children: [{
+                                name: "hello"
+                            }, {
+                                name: "wat"
+                            }]
+                        },
+                        {
+                            name: "hello"
+                        },
+                        {
+                            name: "wat"
+                        },
+                        {
+                            name: "child folder",
+                            children: [{
+                                name: "hello"
+                            }, {
+                                name: "wat"
+                            }]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const EditableLabel = {
+            name: "editable-label",
+            props: {
+                value: String
+            },
+            data() {
+                return {
+                    isEditing: false
+                };
+            },
+            methods: {
+                startEdit() {
+                    this.isEditing = true;
+                    this.$nextTick(function () {
+                        this.$refs.input.focus();
+                    });
+                },
+                endEdit(e) {
+                    if(e.target){
+                        e.target.blur()
+                    }
+                    this.isEditing = false;
+                },
+                toggle() {
+                    if (this.isEditing) {
+                        this.endEdit();
+                    } else {
+                        this.startEdit();
+                    }
+                }
+            },
+            template: `
+                <div class="editableLabel">
+                    <input
+                        class="textInput"
+                        type="text"
+                        ref="input"
+                        v-show="isEditing"
+                        :value="value"
+                        @change="$emit('change', $event.target.value)"
+                        @keydown.enter="endEdit"
+                        @blur="isEditing=false"
+                    />
+                    <span class="textLabel" v-show="!isEditing">{{value}}</span>
+                    <span class="itemAction" @click="toggle">[e]</span>
+                </div>
+            `
+        }
+
+
+        const TreeItem = {
+            name: "tree-item",
+            components: {
+                EditableLabel
+            },
+            props: {
+                item: Object
+            },
+            data() {
+                return {
+                    isOpen: false,
+                    childrenKeys: new Map()
+                };
+            },
+            computed: {
+                isFolder() {
+                    return this.item.children && this.item.children.length;
+                }
+            },
+            methods: {
+                toggle() {
+                    if (this.isFolder) {
+                        this.isOpen = !this.isOpen;
+                    }
+                },
+                getKeyOfChildItem(item) {
+                    let key = this.childrenKeys.get(item);
+                    if (key !== undefined) {
+                        return key;
+                    } else {
+                        key = Math.random().toFixed(8);
+                        this.childrenKeys.set(item, key);
+                    }
+                },
+                addItem() {
+                    this.$emit("add-item", this.item);
+                },
+                handleAddItem(e) {
+                    this.$emit("add-item", e);
+                },
+                makeFolder() {
+                    if (!this.isFolder) {
+                        this.$emit("make-folder", this.item);
+                        this.isOpen = true;
+                    }
+                },
+                handleMakeFolder(e) {
+                    this.$emit("make-folder", e);
+                },
+                deleteItem() {
+                    this.$emit("delete-item", this.item);
+                },
+                handleDeleteItem(itemTarget) {
+                    for (let i = 0; i < this.isFolder; i++) {
+                        const child = this.item.children[i];
+                        if (
+                            child.name === itemTarget.name &&
+                            child.children === itemTarget.children
+                        ) {
+                            this.item.children.splice(i, 1);
+                            break;
+                        }
+                    }
+                },
+                handleNameChange(value) {
+                    console.log('change',value);
+                    this.item.name = value;
+                }
+            },
+            template: `
+                <li class="treeItem">
+                    <div :class="{bold:isFolder}" @click="toggle" @dblclick="makeFolder">
+                        <editable-label :value="item.name" @change="handleNameChange" />
+                        <span @click="deleteItem" class="itemAction">[x]</span>
+                        <span v-if="isFolder" class="itemAction">[{{ isOpen?'-':'+' }}]</span>
+                    </div>
+
+                    <ul v-if="isFolder" v-show="isOpen">
+                        <tree-item
+                            v-for="(child) in item.children"
+                            :key="getKeyOfChildItem(child)"
+                            :item="child"
+                            @make-folder="handleMakeFolder"
+                            @add-item="handleAddItem"
+                            @delete-item="handleDeleteItem"
+                        ></tree-item>
+
+                        <li @click="addItem">[+]</li>
+                    </ul>
+                </li>
+            `
+        }
+
+
+        const TreeList = {
+            name: "tree-list",
+            components: {
+                TreeItem
+            },
+            props: {
+                treeData: Object
+            },
+            methods: {
+                makeFolder(item) {
+                    this.$set(item, "children", []);
+                    this.addItem(item);
+                },
+                addItem(item) {
+                    item.children.push({
+                        name: "new item"
+                    });
+                }
+            },
+            template: `
+                <ul class="treeList">
+                    <!-- 根结点没有注册deleteItem回调, 所以尽管删除元素的按钮存在, 点击按钮时无事发生 -->
+                    <tree-item 
+                        :item="treeData" 
+                        @add-item="addItem" 
+                        @make-folder="makeFolder">
+                    </tree-item>
+                </ul>
+            `
+        }
+
+
+        const vm = new Vue({
+            el: '#app',
+            components: {
+                TreeList,
+            },
+            data: {
+                treeData,
+            }
+        })
+    </script>
+</body>
+
+</html>
